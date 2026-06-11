@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commander Forge - MTG Commander Deck Builder</title>
+  <style>
+    :root {
+      --bg: #101014;
+      --panel: #1a1b22;
+      --panel-2: #242634;
+      --text: #f4f4f6;
+      --muted: #a8adbd;
+      --accent: #9b6cff;
+      --accent-2: #45d6a3;
+      --danger: #ff6b6b;
+      --warning: #ffd166;
+      --border: #343747;
+      --white: #f7f0d8;
+      --blue: #6ab7ff;
+      --black: #9a8f97;
+      --red: #ff7a59;
+      --green: #58d68d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(155, 108, 255, 0.18), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(69, 214, 163, 0.12), transparent 35%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 2rem 1rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      background: rgba(16, 16, 20, 0.85);
+      backdrop-filter: blur(8px);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4rem);
+      letter-spacing: -0.05em;
+    }
+
+    header p {
+      max-width: 800px;
+      margin: 1rem auto 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    main {
+      width: min(1400px, 100%);
+      margin: 0 auto;
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1rem;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    }
+
+    .sticky {
+      position: sticky;
+      top: 1rem;
+      align-self: start;
+    }
+
+    @media (max-width: 900px) {
+      .sticky {
+        position: static;
+      }
+    }
+
+    label {
+      display: block;
+      margin: 1rem 0 0.4rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #11121a;
+      color: var(--text);
+      padding: 0.85rem;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 84px;
+      resize: vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid var(--accent);
+      border-color: var(--accent);
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), #6f8cff);
+      color: white;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .secondary {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+    }
+
+    .danger {
+      background: linear-gradient(135deg, #ff6b6b, #d94848);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .status {
+      margin-top: 1rem;
+      padding: 0.85rem;
+      border-radius: 12px;
+      background: #11121a;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 700px) {
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1rem;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.8rem;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .tab {
+      width: auto;
+      padding: 0.65rem 0.9rem;
+      border-radius: 999px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .tab.active {
+      background: linear-gradient(135deg, var(--accent), #6f8cff);
+      color: white;
+      border-color: transparent;
+    }
+
+    .deck-section {
+      margin-bottom: 1.2rem;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .deck-section h2 {
+      margin: 0;
+      padding: 0.9rem 1rem;
+      background: var(--panel-2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 1rem;
+    }
+
+    .deck-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 0.75rem;
+      padding: 0.75rem;
+    }
+
+    .deck-list {
+      padding: 0.75rem 1rem 1rem;
+      columns: 2 320px;
+    }
+
+    .deck-line {
+      break-inside: avoid;
+      padding: 0.25rem 0;
+      color: var(--text);
+    }
+
+    .mtg-card {
+      background: #11121a;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.75rem;
+      display: grid;
+      gap: 0.4rem;
+      min-height: 128px;
+    }
+
+    .mtg-card .name {
+      font-weight: 900;
+      line-height: 1.25;
+    }
+
+    .mtg-card .type {
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.3;
+    }
+
+    .mtg-card .oracle {
+      color: #d7dae6;
+      font-size: 0.8rem;
+      line-height: 1.35;
+      max-height: 4.1em;
+      overflow: hidden;
+    }
+
+    .pill-row {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.5rem;
+      height: 1.5rem;
+      padding: 0 0.45rem;
+      border-radius: 999px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .mana-W { color: #111; background: var(--white); }
+    .mana-U { color: #061829; background: var(--blue); }
+    .mana-B { color: white; background: #403941; }
+    .mana-R { color: #220700; background: var(--red); }
+    .mana-G { color: #052013; background: var(--green); }
+    .mana-C { color: #111; background: #c7c7c7; }
+
+    .toolbar {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .toolbar button {
+      width: auto;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .export-box {
+      width: 100%;
+      min-height: 420px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      line-height: 1.5;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .commander-result {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #11121a;
+      margin-top: 0.5rem;
+      cursor: pointer;
+    }
+
+    .commander-result:hover {
+      border-color: var(--accent);
+    }
+
+    .commander-result img {
+      width: 56px;
+      height: 78px;
+      object-fit: cover;
+      border-radius: 6px;
+      background: var(--panel-2);
+    }
+
+    .commander-result strong {
+      display: block;
+    }
+
+    .commander-result span {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .loading {
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 1; }
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      padding: 2rem 1rem;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+
+    a {
+      color: #bca4ff;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Commander Forge</h1>
+    <p>
+      Search for a commander, choose your theme and budget, then generate a 100-card
+      Magic: The Gathering Commander deck using live Scryfall card data.
+    </p>
+  </header>
+
+  <main>
+    <aside class="card sticky">
+      <h2>Build Settings</h2>
+
+      <label for="commanderSearch">Commander Name</label>
+      <input id="commanderSearch" placeholder="Example: Muldrotha, Edgar Markov, Atraxa" />
+
+      <button id="searchCommanderBtn" style="margin-top:0.75rem;">Search Commanders</button>
+      <div id="commanderResults"></div>
+
+      <label for="theme">Deck Theme</label>
+      <select id="theme">
+        <option value="generic">Balanced Goodstuff</option>
+        <option value="tokens">Tokens</option>
+        <option value="aristocrats">Aristocrats / Sacrifice</option>
+        <option value="graveyard">Graveyard / Reanimator</option>
+        <option value="artifacts">Artifacts</option>
+        <option value="spellslinger">Spellslinger</option>
+        <option value="lifegain">Lifegain</option>
+        <option value="counters">+1/+1 Counters</option>
+        <option value="lands">Lands Matter</option>
+        <option value="tribal">Typal / Kindred</option>
+      </select>
+
+      <label for="tribe">Creature Type for Typal Theme</label>
+      <input id="tribe" placeholder="Example: Vampire, Elf, Dragon" />
+
+      <div class="row">
+        <div>
+          <label for="budget">Budget</label>
+          <select id="budget">
+            <option value="any">Any</option>
+            <option value="cheap">Budget: mostly under $2</option>
+            <option value="mid">Mid: mostly under $10</option>
+          </select>
+        </div>
+        <div>
+          <label for="power">Power</label>
+          <select id="power">
+            <option value="casual">Casual</option>
+            <option value="focused">Focused</option>
+            <option value="high">High Power</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="lands">Lands</label>
+      <select id="lands">
+        <option value="37">37 lands</option>
+        <option value="35">35 lands</option>
+        <option value="36">36 lands</option>
+        <option value="38">38 lands</option>
+        <option value="39">39 lands</option>
+      </select>
+
+      <button id="buildBtn" style="margin-top:1rem;" disabled>Build Commander Deck</button>
+      <button id="clearBtn" class="secondary" style="margin-top:0.75rem;">Clear</button>
+
+      <div id="status" class="status">
+        Choose a commander to begin.
+      </div>
+
+      <p class="small">
+        This app uses Scryfall search syntax such as <code>legal:commander</code>
+        and color identity filters like <code>id&lt;=wubrg</code>.
+      </p>
+    </aside>
+
+    <section>
+      <div class="stats">
+        <div class="stat">
+          <strong id="statTotal">0</strong>
+          <span>Total Cards</span>
+        </div>
+        <div class="stat">
+          <strong id="statLands">0</strong>
+          <span>Lands</span>
+        </div>
+        <div class="stat">
+          <strong id="statAvgMana">—</strong>
+          <span>Avg Mana Value</span>
+        </div>
+        <div class="stat">
+          <strong id="statPrice">—</strong>
+          <span>Approx. USD</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tabs">
+          <button class="tab active" data-view="visual">Visual Deck</button>
+          <button class="tab" data-view="list">Deck List</button>
+          <button class="tab" data-view="export">Export</button>
+        </div>
+
+        <div class="toolbar">
+          <button id="copyBtn" class="secondary">Copy Decklist</button>
+          <button id="downloadBtn" class="secondary">Download .txt</button>
+          <button id="moxfieldBtn" class="secondary">Copy for Moxfield / Archidekt</button>
+        </div>
+
+        <div id="visualView">
+          <div id="deckOutput">
+            <p class="small">
+              Your generated deck will appear here.
+            </p>
+          </div>
+        </div>
+
+        <div id="listView" class="hidden">
+          <div id="deckListOutput" class="deck-list"></div>
+        </div>
+
+        <div id="exportView" class="hidden">
+          <textarea id="exportBox" class="export-box" readonly></textarea>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Built for Commander brewing. Card data comes from Scryfall. Magic: The Gathering is owned by Wizards of the Coast.
+  </footer>
+
+  <script>
+    const API = "https://api.scryfall.com";
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    let selectedCommander = null;
+    let currentDeck = [];
+
+    const commanderSearch = document.getElementById("commanderSearch");
+    const searchCommanderBtn = document.getElementById("searchCommanderBtn");
+    const commanderResults = document.getElementById("commanderResults");
+    const buildBtn = document.getElementById("buildBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const statusBox = document.getElementById("status");
+    const deckOutput = document.getElementById("deckOutput");
+    const deckListOutput = document.getElementById("deckListOutput");
+    const exportBox = document.getElementById("exportBox");
+
+    const statTotal = document.getElementById("statTotal");
+    const statLands = document.getElementById("statLands");
+    const statAvgMana = document.getElementById("statAvgMana");
+    const statPrice = document.getElementById("statPrice");
+
+    const themeInput = document.getElementById("theme");
+    const tribeInput = document.getElementById("tribe");
+    const budgetInput = document.getElementById("budget");
+    const powerInput = document.getElementById("power");
+    const landsInput = document.getElementById("lands");
+
+    const copyBtn = document.getElementById("copyBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const moxfieldBtn = document.getElementById("moxfieldBtn");
+
+    function setStatus(message) {
+      statusBox.textContent = message;
+    }
+
+    function normalizeName(name) {
+      return name.split(" // ")[0].trim();
+    }
+
+    function colorsToIdentity(colors) {
+      if (!colors || colors.length === 0) return "c";
+      return colors.join("").toLowerCase();
+    }
+
+    function manaPips(colors) {
+      if (!colors || colors.length === 0) {
+        return '<span class="pill mana-C">C</span>';
+      }
+
+      return colors.map(c => `<span class="pill mana-${c}">${c}</span>`).join("");
+    }
+
+    function priceOf(card) {
+      const usd = card.prices && card.prices.usd ? parseFloat(card.prices.usd) : 0;
+      return Number.isFinite(usd) ? usd : 0;
+    }
+
+    function cardImage(card) {
+      if (card.image_uris && card.image_uris.small) return card.image_uris.small;
+      if (card.card_faces && card.card_faces[0] && card.card_faces[0].image_uris) {
+        return card.card_faces[0].image_uris.small;
+      }
+      return "";
+    }
+
+    function oracleText(card) {
+      if (card.oracle_text) return card.oracle_text;
+      if (card.card_faces) {
+        return card.card_faces.map(face => face.oracle_text || "").join(" ");
+      }
+      return "";
+    }
+
+    function typeLine(card) {
+      return card.type_line || "";
+    }
+
+    function isBasicLand(card) {
+      return typeLine(card).includes("Basic Land");
+    }
+
+    function uniqueByName(cards) {
+      const map = new Map();
+      for (const card of cards) {
+        const name = normalizeName(card.name);
+        if (!map.has(name)) map.set(name, card);
+      }
+      return Array.from(map.values());
+    }
+
+    function shuffle(array) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function scoreCard(card, theme, power) {
+      let score = 0;
+
+      const oracle = oracleText(card).toLowerCase();
+      const type = typeLine(card).toLowerCase();
+      const name = card.name.toLowerCase();
+      const edhrec = card.edhrec_rank || 999999;
+      const cmc = card.cmc || 0;
+
+      score += Math.max(0, 100000 - edhrec) / 1000;
+
+      if (power === "high") {
+        if (cmc <= 2) score += 18;
+        if (oracle.includes("draw a card")) score += 8;
+        if (oracle.includes("add ")) score += 8;
+        if (oracle.includes("search your library")) score += 7;
+      }
+
+      if (power === "casual") {
+        if (cmc >= 3 && cmc <= 6) score += 5;
+      }
+
+      const themeWords = {
+        generic: ["draw", "destroy", "exile", "search your library", "add "],
+        tokens: ["token", "create", "populate", "creature token"],
+        aristocrats: ["sacrifice", "dies", "whenever another creature dies", "blood artist", "drain"],
+        graveyard: ["graveyard", "return target", "reanimate", "from your graveyard", "mill"],
+        artifacts: ["artifact", "treasure", "clue", "food", "equipment"],
+        spellslinger: ["instant", "sorcery", "magecraft", "copy target", "whenever you cast"],
+        lifegain: ["gain life", "lifelink", "whenever you gain life"],
+        counters: ["+1/+1 counter", "proliferate", "counter on"],
+        lands: ["landfall", "play an additional land", "search your library for a land", "lands you control"],
+        tribal: []
+      };
+
+      for (const word of themeWords[theme] || []) {
+        if (oracle.includes(word) || type.includes(word) || name.includes(word)) {
+          score += 20;
+        }
+      }
+
+      const tribe = tribeInput.value.trim().toLowerCase();
+      if (theme === "tribal" && tribe) {
+        if (type.includes(tribe)) score += 35;
+        if (oracle.includes(tribe)) score += 20;
+        if (oracle.includes("choose a creature type")) score += 15;
+      }
+
+      if (type.includes("legendary") && type.includes("creature") && card.name !== selectedCommander?.name) {
+        score += 4;
+      }
+
+      return score + Math.random() * 8;
+    }
+
+    async function scryfallSearch(query, limit = 60) {
+      const cards = [];
+      let url = `${API}/cards/search?unique=cards&order=edhrec&q=${encodeURIComponent(query)}`;
+
+      while (url && cards.length < limit) {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          console.warn("Scryfall error", query, await response.text());
+          break;
+        }
+
+        const data = await response.json();
+        cards.push(...data.data);
+        url = data.has_more ? data.next_page : null;
+        await sleep(80);
+      }
+
+      return uniqueByName(cards).slice(0, limit);
+    }
+
+    async function searchCommanders() {
+      const q = commanderSearch.value.trim();
+      if (!q) {
+        setStatus("Enter a commander name first.");
+        return;
+      }
+
+      commanderResults.innerHTML = "";
+      searchCommanderBtn.disabled = true;
+      searchCommanderBtn.textContent = "Searching...";
+      setStatus("Searching Scryfall for legal commanders...");
+
+      try {
+        const query = `is:commander legal:commander ${q}`;
+        const cards = await scryfallSearch(query, 12);
+
+        if (!cards.length) {
+          setStatus("No matching legal commanders found. Try a simpler name.");
+          return;
+        }
+
+        commanderResults.innerHTML = cards.map((card, index) => `
+          <div class="commander-result" data-index="${index}">
+            ${cardImage(card) ? `<img src="${cardImage(card)}" alt="${card.name}">` : `<div></div>`}
+            <div>
+              <strong>${card.name}</strong>
+              <span>${typeLine(card)}</span>
+              <div class="pill-row" style="margin-top:0.35rem;">
+                ${manaPips(card.color_identity)}
+              </div>
+            </div>
+          </div>
+        `).join("");
+
+        Array.from(document.querySelectorAll(".commander-result")).forEach(el => {
+          el.addEventListener("click", () => {
+            selectedCommander = cards[Number(el.dataset.index)];
+            buildBtn.disabled = false;
+            commanderResults.innerHTML = `
+              <div class="commander-result">
+                ${cardImage(selectedCommander) ? `<img src="${cardImage(selectedCommander)}" alt="${selectedCommander.name}">` : `<div></div>`}
+                <div>
+                  <strong>Selected: ${selectedCommander.name}</strong>
+                  <span>${typeLine(selectedCommander)}</span>
+                  <div class="pill-row" style="margin-top:0.35rem;">
+                    ${manaPips(selectedCommander.color_identity)}
+                  </div>
+                </div>
+              </div>
+            `;
+            setStatus(`Selected ${selectedCommander.name}. Ready to build.`);
+          });
+        });
+
+        setStatus(`Found ${cards.length} commander option(s). Click one to select it.`);
+      } catch (error) {
+        console.error(error);
+        setStatus("Something went wrong while searching commanders.");
+      } finally {
+        searchCommanderBtn.disabled = false;
+        searchCommanderBtn.textContent = "Search Commanders";
+      }
+    }
+
+    function budgetClause() {
+      const budget = budgetInput.value;
+      if (budget === "cheap") return "usd<=2";
+      if (budget === "mid") return "usd<=10";
+      return "";
+    }
+
+    function baseQuery(extra) {
+      const id = colorsToIdentity(selectedCommander.color_identity);
+      const budget = budgetClause();
+      return [
+        "legal:commander",
+        `id<=${id}`,
+        "-is:digital",
+        "-is:funny",
+        extra,
+        budget
+      ].filter(Boolean).join(" ");
+    }
+
+    async function fetchCategory(category, query, count, poolSize = 80) {
+      setStatus(`Finding ${category}...`);
+      const cards = await scryfallSearch(query, poolSize);
+      const theme = themeInput.value;
+      const power = powerInput.value;
+
+      return shuffle(cards)
+        .sort((a, b) => scoreCard(b, theme, power) - scoreCard(a, theme, power))
+        .slice(0, count)
+        .map(card => ({ ...card, deckCategory: category }));
+    }
+
+    function removeDuplicates(deck) {
+      const seen = new Set();
+      const result = [];
+
+      for (const card of deck) {
+        const name = normalizeName(card.name);
+
+        if (isBasicLand(card)) {
+          result.push(card);
+          continue;
+        }
+
+        if (!seen.has(name)) {
+          seen.add(name);
+          result.push(card);
+        }
+      }
+
+      return result;
+    }
+
+    function chooseBasicLands(colors, needed) {
+      const basics = {
+        W: "Plains",
+        U: "Island",
+        B: "Swamp",
+        R: "Mountain",
+        G: "Forest"
+      };
+
+      const chosenColors = colors && colors.length ? colors : ["C"];
+      const lands = [];
+
+      if (chosenColors.includes("C")) {
+        for (let i = 0; i < needed; i++) {
+          lands.push({
+            name: "Wastes",
+            type_line: "Basic Land",
+            cmc: 0,
+            color_identity: [],
+            prices: { usd: "0.20" },
+            deckCategory: "Basic Lands",
+            oracle_text: "{T}: Add {C}."
+          });
+        }
+        return lands;
+      }
+
+      for (let i = 0; i < needed; i++) {
+        const color = chosenColors[i % chosenColors.length];
+        lands.push({
+          name: basics[color],
+          type_line: "Basic Land — " + basics[color],
+          cmc: 0,
+          color_identity: [color],
+          prices: { usd: "0.10" },
+          deckCategory: "Basic Lands",
+          oracle_text: "{T}: Add one mana."
+        });
+      }
+
+      return lands;
+    }
+
+    async function buildDeck() {
+      if (!selectedCommander) return;
+
+      buildBtn.disabled = true;
+      buildBtn.textContent = "Building...";
+      setStatus("Starting deck construction...");
+
+      try {
+        const landTarget = Number(landsInput.value);
+        const nonlandTarget = 99 - landTarget;
+        const theme = themeInput.value;
+        const tribe = tribeInput.value.trim();
+
+        const commanderCard = {
+          ...selectedCommander,
+          deckCategory: "Commander"
+        };
+
+        const synergyQueries = {
+          generic: '(o:"draw a card" or o:"search your library" or o:"whenever" or o:"at the beginning")',
+          tokens: '(o:token or o:create or o:populate)',
+          aristocrats: '(o:sacrifice or o:"dies" or o:"whenever another creature dies" or o:"each opponent loses")',
+          graveyard: '(o:graveyard or o:"return target creature" or o:mill or o:reanimate)',
+          artifacts: '(t:artifact or o:artifact or o:treasure)',
+          spellslinger: '(t:instant or t:sorcery or o:magecraft or o:"copy target")',
+          lifegain: '(o:"gain life" or o:lifelink or o:"whenever you gain life")',
+          counters: '(o:"+1/+1 counter" or o:proliferate)',
+          lands: '(o:landfall or o:"play an additional land" or o:"search your library for a land")',
+          tribal: tribe ? `(t:${tribe} or o:${tribe} or o:"choose a creature type")` : '(t:creature or o:"choose a creature type")'
+        };
+
+        const categories = [
+          {
+            name: "Ramp",
+            count: 11,
+            query: baseQuery('(o:"add " or o:"search your library for a basic land" or t:artifact) -t:land')
+          },
+          {
+            name: "Card Draw",
+            count: 10,
+            query: baseQuery('(o:"draw a card" or o:"draw cards" or o:"look at the top" or o:"return target card") -t:land')
+          },
+          {
+            name: "Target Removal",
+            count: 9,
+            query: baseQuery('(o:destroy or o:exile or o:"counter target" or o:"return target") -t:land')
+          },
+          {
+            name: "Board Wipes",
+            count: 4,
+            query: baseQuery('(o:"destroy all" or o:"exile all" or o:"each creature" or o:"all creatures") -t:land')
+          },
+          {
+            name: "Theme Synergy",
+            count: 25,
+            query: baseQuery(`${synergyQueries[theme]} -t:land`)
+          },
+          {
+            name: "Creatures / Threats",
+            count: 15,
+            query: baseQuery('(t:creature or t:planeswalker or o:"create") -t:land')
+          },
+          {
+            name: "Utility / Protection",
+            count: 8,
+            query: baseQuery('(o:hexproof or o:indestructible or o:"protection from" or o:"phase out" or o:"you may") -t:land')
+          }
+        ];
+
+        let deck = [commanderCard];
+
+        for (const cat of categories) {
+          const cards = await fetchCategory(cat.name, cat.query, cat.count);
+          deck.push(...cards);
+          deck = removeDuplicates(deck);
+          await sleep(120);
+        }
+
+        let nonlands = deck.filter(card => card.deckCategory !== "Commander" && !typeLine(card).includes("Land"));
+        let neededNonlands = nonlandTarget - nonlands.length;
+
+        if (neededNonlands > 0) {
+          const filler = await fetchCategory(
+            "Flexible Picks",
+            baseQuery(`${synergyQueries[theme]} -t:land`),
+            neededNonlands,
+            120
+          );
+          deck.push(...filler);
+          deck = removeDuplicates(deck);
+        }
+
+        nonlands = deck.filter(card => card.deckCategory !== "Commander" && !typeLine(card).includes("Land"));
+        if (nonlands.length > nonlandTarget) {
+          const commander = deck.find(card => card.deckCategory === "Commander");
+          nonlands = nonlands.slice(0, nonlandTarget);
+          deck = [commander, ...nonlands];
+        }
+
+        const nonBasicLandsCount = Math.min(12, Math.max(4, Math.floor(landTarget * 0.32)));
+        const nonBasicLands = await fetchCategory(
+          "Nonbasic Lands",
+          baseQuery('t:land'),
+          nonBasicLandsCount,
+          80
+        );
+
+        deck.push(...nonBasicLands);
+        deck = removeDuplicates(deck);
+
+        const currentLandCount = deck.filter(card => typeLine(card).includes("Land")).length;
+        const basicsNeeded = Math.max(0, landTarget - currentLandCount);
+        deck.push(...chooseBasicLands(selectedCommander.color_identity, basicsNeeded));
+
+        if (deck.length > 100) {
+          const commander = deck.find(card => card.deckCategory === "Commander");
+          const lands = deck.filter(card => card.deckCategory !== "Commander" && typeLine(card).includes("Land"));
+          const others = deck.filter(card => card.deckCategory !== "Commander" && !typeLine(card).includes("Land"));
+          deck = [commander, ...others.slice(0, 99 - lands.length), ...lands].slice(0, 100);
+        }
+
+        currentDeck = deck;
+        renderDeck(deck);
+        setStatus(`Done! Built a ${deck.length}-card Commander deck for ${selectedCommander.name}.`);
+      } catch (error) {
+        console.error(error);
+        setStatus("Something went wrong while building the deck. Try again or use a broader commander/theme.");
+      } finally {
+        buildBtn.disabled = false;
+        buildBtn.textContent = "Build Commander Deck";
+      }
+    }
+
+    function groupDeck(deck) {
+      const groups = {};
+
+      for (const card of deck) {
+        const category = card.deckCategory || "Other";
+        if (!groups[category]) groups[category] = [];
+        groups[category].push(card);
+      }
+
+      return groups;
+    }
+
+    function renderDeck(deck) {
+      const groups = groupDeck(deck);
+
+      const order = [
+        "Commander",
+        "Ramp",
+        "Card Draw",
+        "Target Removal",
+        "Board Wipes",
+        "Theme Synergy",
+        "Creatures / Threats",
+        "Utility / Protection",
+        "Flexible Picks",
+        "Nonbasic Lands",
+        "Basic Lands",
+        "Other"
+      ];
+
+      deckOutput.innerHTML = order
+        .filter(group => groups[group] && groups[group].length)
+        .map(group => `
+          <section class="deck-section">
+            <h2>
+              <span>${group}</span>
+              <span class="pill">${groups[group].length}</span>
+            </h2>
+            <div class="deck-grid">
+              ${groups[group].map(card => `
+                <article class="mtg-card">
+                  <div class="name">${card.name}</div>
+                  <div class="type">${typeLine(card)}</div>
+                  <div class="pill-row">
+                    ${manaPips(card.color_identity)}
+                    <span class="pill">MV ${card.cmc || 0}</span>
+                    ${priceOf(card) ? `<span class="pill">$${priceOf(card).toFixed(2)}</span>` : ""}
+                  </div>
+                  <div class="oracle">${oracleText(card)}</div>
+                </article>
+              `).join("")}
+            </div>
+          </section>
+        `).join("");
+
+      const deckText = buildDeckText(deck);
+
+      deckListOutput.innerHTML = deckText
+        .split("\n")
+        .filter(Boolean)
+        .map(line => `<div class="deck-line">${line}</div>`)
+        .join("");
+
+      exportBox.value = deckText;
+      updateStats(deck);
+    }
+
+    function buildDeckText(deck) {
+      const groups = groupDeck(deck);
+      const order = [
+        "Commander",
+        "Ramp",
+        "Card Draw",
+        "Target Removal",
+        "Board Wipes",
+        "Theme Synergy",
+        "Creatures / Threats",
+        "Utility / Protection",
+        "Flexible Picks",
+        "Nonbasic Lands",
+        "Basic Lands",
+        "Other"
+      ];
+
+      const lines = [];
+
+      for (const group of order) {
+        if (!groups[group] || !groups[group].length) continue;
+
+        lines.push(`${group}`);
+        const counts = new Map();
+
+        for (const card of groups[group]) {
+          const name = normalizeName(card.name);
+          counts.set(name, (counts.get(name) || 0) + 1);
+        }
+
+        Array.from(counts.entries())
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .forEach(([name, count]) => {
+            lines.push(`${count} ${name}`);
+          });
+
+        lines.push("");
+      }
+
+      return lines.join("\n").trim();
+    }
+
+    function updateStats(deck) {
+      statTotal.textContent = deck.length;
+
+      const lands = deck.filter(card => typeLine(card).includes("Land")).length;
+      statLands.textContent = lands;
+
+      const nonlands = deck.filter(card => !typeLine(card).includes("Land"));
+      const avg = nonlands.length
+        ? nonlands.reduce((sum, card) => sum + (card.cmc || 0), 0) / nonlands.length
+        : 0;
+
+      statAvgMana.textContent = avg ? avg.toFixed(2) : "—";
+
+      const totalPrice = deck.reduce((sum, card) => sum + priceOf(card), 0);
+      statPrice.textContent = totalPrice ? `$${totalPrice.toFixed(0)}` : "—";
+    }
+
+    async function copyDecklist() {
+      if (!currentDeck.length) return;
+      await navigator.clipboard.writeText(buildDeckText(currentDeck));
+      setStatus("Copied decklist to clipboard.");
+    }
+
+    function downloadDecklist() {
+      if (!currentDeck.length) return;
+
+      const blob = new Blob([buildDeckText(currentDeck)], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = `${selectedCommander ? selectedCommander.name : "commander-deck"}.txt`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+      setStatus("Downloaded decklist.");
+    }
+
+    async function copyForMoxfield() {
+      if (!currentDeck.length) return;
+
+      const lines = [];
+      const counts = new Map();
+
+      for (const card of currentDeck) {
+        const name = normalizeName(card.name);
+        counts.set(name, (counts.get(name) || 0) + 1);
+      }
+
+      Array.from(counts.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([name, count]) => lines.push(`${count} ${name}`));
+
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setStatus("Copied plain import list for Moxfield, Archidekt, or other deck sites.");
+    }
+
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+
+        const view = tab.dataset.view;
+        document.getElementById("visualView").classList.toggle("hidden", view !== "visual");
+        document.getElementById("listView").classList.toggle("hidden", view !== "list");
+        document.getElementById("exportView").classList.toggle("hidden", view !== "export");
+      });
+    });
+
+    searchCommanderBtn.addEventListener("click", searchCommanders);
+    buildBtn.addEventListener("click", buildDeck);
+    copyBtn.addEventListener("click", copyDecklist);
+    downloadBtn.addEventListener("click", downloadDecklist);
+    moxfieldBtn.addEventListener("click", copyForMoxfield);
+
+    clearBtn.addEventListener("click", () => {
+      selectedCommander = null;
+      currentDeck = [];
+      commanderSearch.value = "";
+      commanderResults.innerHTML = "";
+      deckOutput.innerHTML = '<p class="small">Your generated deck will appear here.</p>';
+      deckListOutput.innerHTML = "";
+      exportBox.value = "";
+      buildBtn.disabled = true;
+      statTotal.textContent = "0";
+      statLands.textContent = "0";
+      statAvgMana.textContent = "—";
+      statPrice.textContent = "—";
+      setStatus("Choose a commander to begin.");
+    });
+
+    commanderSearch.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        searchCommanders();
+      }
+    });
+  </script>
+</body>
+</html>
