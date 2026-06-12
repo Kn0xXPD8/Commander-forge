@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Commander Forge - MTG Commander Deck Builder</title>
+
   <style>
     :root {
       --bg: #0b1020;
@@ -16,6 +18,7 @@
       --accent: #7c3aed;
       --accent-2: #6d28d9;
       --green: #10b981;
+      --green-2: #059669;
       --red: #ef4444;
       --yellow: #f59e0b;
       --blue: #3b82f6;
@@ -172,7 +175,7 @@
     }
 
     button.green:hover {
-      background: #059669;
+      background: var(--green-2);
     }
 
     button:disabled {
@@ -479,12 +482,14 @@
           placeholder="Start typing a commander name..."
           autocomplete="off"
         />
+
         <div id="commanderResults" class="commander-results"></div>
         <input id="selectedCommander" type="hidden" />
 
         <label for="colorCombination">Color Combination</label>
         <select id="colorCombination">
           <option value="">Any colors</option>
+
           <option value="W">Mono-White</option>
           <option value="U">Mono-Blue</option>
           <option value="B">Mono-Black</option>
@@ -584,10 +589,7 @@
         </div>
 
         <p class="hint">
-          This app uses Scryfall search syntax such as
-          <span class="small-code">legal:commander</span>
-          and color identity filters like
-          <span class="small-code">id&lt;=wubrg</span>.
+          This app uses Scryfall card data and Commander color identity rules.
         </p>
 
         <div class="modify-section">
@@ -596,10 +598,12 @@
             After building, ask for changes like “add more removal,” “make it cheaper,”
             “more card draw,” “more ramp,” “more board wipes,” or “more aggressive.”
           </p>
+
           <textarea
             id="deckFeedback"
             placeholder="Example: Add more removal and make it more budget-friendly..."
           ></textarea>
+
           <div class="button-row">
             <button class="green" onclick="modifyDeck()">Modify Deck</button>
           </div>
@@ -616,14 +620,17 @@
             <div id="totalCards" class="stat-value">0</div>
             <div class="stat-label">Total Cards</div>
           </div>
+
           <div class="stat">
             <div id="landStat" class="stat-value">0</div>
             <div class="stat-label">Lands</div>
           </div>
+
           <div class="stat">
             <div id="avgMv" class="stat-value">—</div>
             <div class="stat-label">Avg Mana Value</div>
           </div>
+
           <div class="stat">
             <div id="usdStat" class="stat-value">—</div>
             <div class="stat-label">Approx. USD</div>
@@ -652,6 +659,7 @@
             <button onclick="downloadDecklist()">Download .txt</button>
             <button onclick="copyMoxfield()">Copy for Moxfield / Archidekt</button>
           </div>
+
           <pre id="exportList" class="deck-list">Your generated deck will appear here.</pre>
         </div>
       </div>
@@ -665,6 +673,7 @@
   <script>
     const SCRYFALL_SEARCH_URL = "https://api.scryfall.com/cards/search?q=";
     const SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named?exact=";
+    const SCRYFALL_RANDOM_URL = "https://api.scryfall.com/cards/random?q=";
 
     let currentDeck = [];
     let selectedCommanderData = null;
@@ -706,7 +715,11 @@
 
     function normalizeColors(colors) {
       const order = ["W", "U", "B", "R", "G"];
-      return [...colors].sort((a, b) => order.indexOf(a) - order.indexOf(b)).join("");
+
+      return [...colors]
+        .filter(Boolean)
+        .sort((a, b) => order.indexOf(a) - order.indexOf(b))
+        .join("");
     }
 
     function getColorIdentityText(colors) {
@@ -720,7 +733,10 @@
         G: "Green"
       };
 
-      return normalizeColors(colors).split("").map(color => colorMap[color] || color).join("/");
+      return normalizeColors(colors)
+        .split("")
+        .map(color => colorMap[color] || color)
+        .join("/");
     }
 
     function getCardImage(card, size = "normal") {
@@ -738,6 +754,66 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function isBasicLandName(name) {
+      return ["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"].includes(name);
+    }
+
+    function cardKey(card) {
+      return String(card.name || "").toLowerCase();
+    }
+
+    function deckHasCard(deck, card) {
+      return deck.some(existing => cardKey(existing) === cardKey(card));
+    }
+
+    function isLand(card) {
+      return String(card.type_line || "").includes("Land");
+    }
+
+    function uniqueByName(cards) {
+      const seen = new Set();
+
+      return cards.filter(card => {
+        if (!card || !card.name) return false;
+
+        const key = card.name.toLowerCase();
+
+        if (seen.has(key)) return false;
+
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function addCards(deck, cards, targetSize, commanderName) {
+      for (const card of cards) {
+        if (deck.length >= targetSize) break;
+        if (!card || !card.name) continue;
+
+        const name = card.name;
+        const lowerName = name.toLowerCase();
+
+        if (commanderName && lowerName === commanderName.toLowerCase()) continue;
+
+        const isBasic = isBasicLandName(name);
+
+        if (!isBasic && deckHasCard(deck, card)) continue;
+
+        deck.push(card);
+      }
+    }
+
+    function shuffleArray(array) {
+      const copy = [...array];
+
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+
+      return copy;
     }
 
     async function searchCommandersLive() {
@@ -811,6 +887,7 @@
                   ? `<img src="${image}" alt="${escapeHtml(card.name)}">`
                   : `<div style="width:56px;height:78px;background:#374151;border-radius:7px;"></div>`
               }
+
               <div class="commander-result-info">
                 <div class="commander-result-name">${escapeHtml(card.name)}</div>
                 <div class="commander-result-meta">${escapeHtml(colors)} • ${escapeHtml(typeLine)}</div>
@@ -825,9 +902,9 @@
             selectCommander(commanders[index]);
           });
         });
-
       } catch (error) {
         console.error(error);
+
         commanderResults.innerHTML = `
           <div class="commander-result">
             <div class="commander-result-info">
@@ -848,6 +925,7 @@
       document.getElementById("randomCommanderResult").innerHTML = "";
 
       const existingPreview = document.getElementById("selectedCommanderPreview");
+
       if (existingPreview) existingPreview.remove();
 
       const image = getCardImage(card, "normal");
@@ -862,6 +940,7 @@
             ? `<img src="${image}" alt="${escapeHtml(card.name)}">`
             : `<div style="width:92px;height:128px;background:#374151;border-radius:9px;"></div>`
         }
+
         <div>
           <strong>Selected Commander:</strong>
           <div>${escapeHtml(card.name)}</div>
@@ -871,6 +950,7 @@
       `;
 
       commanderResults.insertAdjacentElement("afterend", preview);
+
       setStatus(`Selected ${card.name}. Choose settings, then build the deck.`, "good");
     }
 
@@ -893,7 +973,7 @@
         }
 
         const response = await fetch(
-          "https://api.scryfall.com/cards/random?q=" + encodeURIComponent(query)
+          SCRYFALL_RANDOM_URL + encodeURIComponent(query)
         );
 
         if (!response.ok) {
@@ -902,12 +982,7 @@
 
         const card = await response.json();
 
-        selectedCommanderData = card;
-        document.getElementById("selectedCommander").value = card.name;
-        commanderSearchInput.value = card.name;
-
-        const existingPreview = document.getElementById("selectedCommanderPreview");
-        if (existingPreview) existingPreview.remove();
+        selectCommander(card);
 
         const image = getCardImage(card, "normal");
 
@@ -918,6 +993,7 @@
                 ? `<img src="${image}" alt="${escapeHtml(card.name)}">`
                 : `<div style="width:92px;height:128px;background:#374151;border-radius:9px;"></div>`
             }
+
             <div>
               <strong>Random Commander:</strong>
               <div>${escapeHtml(card.name)}</div>
@@ -965,18 +1041,25 @@
       const card = await response.json();
 
       if (!card.legalities || card.legalities.commander !== "legal") {
-        throw new Error("That card is not legal as a Commander.");
+        throw new Error("That card is not legal in Commander.");
+      }
+
+      if (!String(card.type_line || "").includes("Legendary")) {
+        throw new Error("That card does not appear to be a legal commander.");
       }
 
       selectedCommanderData = card;
       document.getElementById("selectedCommander").value = card.name;
+
       return card;
     }
 
     function budgetQuery() {
       const budget = document.getElementById("budget").value;
+
       if (budget === "budget") return " usd<=2";
       if (budget === "mid") return " usd<=10";
+
       return "";
     }
 
@@ -984,11 +1067,11 @@
       const power = document.getElementById("power").value;
 
       if (power === "high") {
-        return " (otag:commander-staple or otag:efficient or otag:tutor or otag:fast-mana or otag:combo)";
+        return " (otag:commander-staple or otag:efficient or otag:tutor or otag:fast-mana or otag:combo or otag:card-advantage)";
       }
 
       if (power === "focused") {
-        return " (otag:commander-staple or otag:synergy or otag:card-advantage or otag:ramp)";
+        return " (otag:commander-staple or otag:synergy or otag:card-advantage or otag:ramp or otag:removal)";
       }
 
       return "";
@@ -996,56 +1079,71 @@
 
     function colorIdentityQuery(colors) {
       if (!colors || colors.length === 0) return " id<=c";
+
       return ` id<=${normalizeColors(colors).toLowerCase()}`;
     }
 
     function themeQuery(theme) {
-      const type = document.getElementById("creatureType").value.trim();
+      const rawType = document.getElementById("creatureType").value.trim();
+      const safeType = rawType.replace(/[^\w\s-]/g, "");
 
       const queries = {
-        balanced: "",
-        tokens: " (o:token or otag:tokens)",
-        aristocrats: " (o:sacrifice or o:dies or o:\"when.*dies\" or otag:aristocrats)",
-        graveyard: " (o:graveyard or o:reanimate or o:flashback or otag:reanimator)",
+        balanced: " (otag:commander-staple or otag:card-advantage or otag:ramp or otag:removal or otag:synergy)",
+        tokens: " (o:token or o:tokens or otag:tokens)",
+        aristocrats: " (o:sacrifice or o:sacrifices or o:dies or o:\"whenever another creature dies\" or otag:aristocrats)",
+        graveyard: " (o:graveyard or o:reanimate or o:flashback or o:unearth or otag:reanimator or otag:graveyard)",
         artifacts: " (t:artifact or o:artifact or otag:artifacts)",
-        spellslinger: " (t:instant or t:sorcery or o:\"instant or sorcery\" or otag:spellslinger)",
+        spellslinger: " (t:instant or t:sorcery or o:\"instant or sorcery\" or o:\"copy target\" or otag:spellslinger)",
         lifegain: " (o:\"gain life\" or o:lifelink or otag:lifegain)",
-        counters: " (o:\"+1/+1 counter\" or otag:counters)",
-        lands: " (o:land or o:\"play an additional land\" or otag:lands)",
-        typal: type ? ` (t:${type} or o:${type})` : " (otag:typal or otag:kindred)"
+        counters: " (o:\"+1/+1 counter\" or o:proliferate or otag:counters)",
+        lands: " (o:landfall or o:\"play an additional land\" or o:\"return target land\" or otag:lands)",
+        typal: safeType
+          ? ` (t:"${safeType}" or o:"${safeType}")`
+          : " (otag:typal or otag:kindred)"
       };
 
-      return queries[theme] || "";
+      return queries[theme] || queries.balanced;
     }
 
     async function scryfallSearch(query, limit = 20) {
-      const response = await fetch(
-        SCRYFALL_SEARCH_URL + encodeURIComponent(query) + "&unique=cards&order=edhrec"
-      );
+      const cards = [];
+      let url = SCRYFALL_SEARCH_URL + encodeURIComponent(query) + "&unique=cards&order=edhrec";
 
-      if (!response.ok) return [];
+      try {
+        while (url && cards.length < limit) {
+          const response = await fetch(url);
 
-      const data = await response.json();
-      return data.data.slice(0, limit);
+          if (!response.ok) break;
+
+          const data = await response.json();
+
+          if (Array.isArray(data.data)) {
+            cards.push(...data.data);
+          }
+
+          if (data.has_more && data.next_page && cards.length < limit) {
+            url = data.next_page;
+          } else {
+            url = null;
+          }
+        }
+      } catch (error) {
+        console.error("Scryfall search failed:", query, error);
+      }
+
+      return cards.slice(0, limit);
     }
 
-    function uniqueByName(cards) {
-      const seen = new Set();
-      return cards.filter(card => {
-        const key = card.name.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    async function fetchCardByName(name) {
+      try {
+        const response = await fetch(SCRYFALL_NAMED_URL + encodeURIComponent(name));
 
-    function addCards(deck, cards, maxAmount, commanderName) {
-      for (const card of cards) {
-        if (deck.length >= maxAmount) break;
-        if (!card || !card.name) continue;
-        if (card.name.toLowerCase() === commanderName.toLowerCase()) continue;
-        if (deck.some(existing => existing.name.toLowerCase() === card.name.toLowerCase())) continue;
-        deck.push(card);
+        if (!response.ok) return null;
+
+        return await response.json();
+      } catch (error) {
+        console.error("Card fetch failed:", name, error);
+        return null;
       }
     }
 
@@ -1064,54 +1162,143 @@
         const power = powerQuery();
         const theme = document.getElementById("theme").value;
         const requestedLands = Number(document.getElementById("landCount").value);
+        const nonlandTarget = 100 - requestedLands;
 
         currentDeck = [commander];
 
-        setStatus("Gathering ramp, draw, removal, theme cards, and lands from Scryfall...", "warn");
+        setStatus("Gathering ramp, draw, removal, theme cards, and win conditions...", "warn");
 
-        const base = `legal:commander ${colorQuery}${budget} -t:land`;
+        const base = `legal:commander ${colorQuery}${budget} -t:land -is:digital`;
+        const broadBase = `legal:commander ${colorQuery} -t:land -is:digital`;
         const themePart = themeQuery(theme);
 
         const searches = await Promise.all([
-          scryfallSearch(`${base} (otag:ramp or o:"add one mana" or o:"search your library for a basic land")${power}`, 18),
-          scryfallSearch(`${base} (otag:card-advantage or o:"draw a card" or o:"draw cards")${power}`, 18),
-          scryfallSearch(`${base} (otag:removal or o:destroy or o:exile)${power}`, 16),
-          scryfallSearch(`${base} (otag:board-wipe or o:"destroy all" or o:"exile all")${budget}`, 8),
-          scryfallSearch(`${base}${themePart}${power}`, 34),
-          scryfallSearch(`${base} (otag:wincon or o:"you win the game" or o:"double")${budget}`, 10),
-          scryfallSearch(`${base} t:creature${themePart}${budget}`, 18)
+          scryfallSearch(`${base} (name:"Sol Ring" or name:"Arcane Signet" or otag:ramp or o:"add one mana" or o:"search your library for a basic land")${power}`, 30),
+          scryfallSearch(`${base} (otag:card-advantage or o:"draw a card" or o:"draw cards")${power}`, 30),
+          scryfallSearch(`${base} (otag:removal or o:destroy or o:exile or o:"counter target" or o:"return target")${power}`, 30),
+          scryfallSearch(`${base} (otag:board-wipe or o:"destroy all" or o:"exile all" or o:"each creature")`, 14),
+          scryfallSearch(`${base}${themePart}${power}`, 60),
+          scryfallSearch(`${broadBase}${themePart}`, 60),
+          scryfallSearch(`${base} t:creature${themePart}`, 40),
+          scryfallSearch(`${base} (otag:wincon or o:"you win the game" or o:"double" or o:"whenever")`, 25),
+          scryfallSearch(`${base}${power}`, 100),
+          scryfallSearch(`${broadBase}`, 120)
         ]);
 
         const ramp = searches[0];
         const draw = searches[1];
         const removal = searches[2];
         const wipes = searches[3];
-        const themeCards = searches[4];
-        const wincons = searches[5];
-        const creatures = searches[6];
+        const themeCardsA = searches[4];
+        const themeCardsB = searches[5];
+        const themeCreatures = searches[6];
+        const wincons = searches[7];
+        const fillerA = searches[8];
+        const fillerB = searches[9];
 
-        addCards(currentDeck, uniqueByName(ramp), 1 + 10, commanderName);
-        addCards(currentDeck, uniqueByName(draw), 1 + 20, commanderName);
-        addCards(currentDeck, uniqueByName(removal), 1 + 31, commanderName);
-        addCards(currentDeck, uniqueByName(wipes), 1 + 35, commanderName);
-        addCards(currentDeck, uniqueByName(themeCards), 1 + 68 - requestedLands, commanderName);
-        addCards(currentDeck, uniqueByName(wincons), 1 + 73 - requestedLands, commanderName);
-        addCards(currentDeck, uniqueByName(creatures), 100 - requestedLands, commanderName);
+        addCards(currentDeck, uniqueByName(ramp), Math.min(nonlandTarget, 11), commanderName);
+        addCards(currentDeck, uniqueByName(draw), Math.min(nonlandTarget, 21), commanderName);
+        addCards(currentDeck, uniqueByName(removal), Math.min(nonlandTarget, 31), commanderName);
+        addCards(currentDeck, uniqueByName(wipes), Math.min(nonlandTarget, 34), commanderName);
 
-        while (currentDeck.length < 100 - requestedLands) {
-          const filler = await scryfallSearch(`${base}${budget}${power}`, 75);
+        addCards(
+          currentDeck,
+          uniqueByName(shuffleArray([...themeCardsA, ...themeCardsB, ...themeCreatures])),
+          Math.min(nonlandTarget, 78),
+          commanderName
+        );
+
+        addCards(
+          currentDeck,
+          uniqueByName(wincons),
+          Math.min(nonlandTarget, 84),
+          commanderName
+        );
+
+        addCards(
+          currentDeck,
+          uniqueByName(shuffleArray([...fillerA, ...fillerB])),
+          nonlandTarget,
+          commanderName
+        );
+
+        let attempts = 0;
+
+        while (currentDeck.length < nonlandTarget && attempts < 6) {
+          attempts++;
+
+          let fallbackQuery;
+
+          if (attempts === 1) {
+            fallbackQuery = `${broadBase}${themePart}`;
+          } else if (attempts === 2) {
+            fallbackQuery = `${broadBase}`;
+          } else if (attempts === 3) {
+            fallbackQuery = `legal:commander ${colorQuery} -t:land -is:digital`;
+          } else if (attempts === 4) {
+            fallbackQuery = `legal:commander ${colorQuery} -is:digital`;
+          } else if (attempts === 5) {
+            fallbackQuery = `legal:commander ${colorQuery}`;
+          } else {
+            fallbackQuery = `legal:commander`;
+          }
+
+          const fallbackCards = await scryfallSearch(fallbackQuery, 200);
           const before = currentDeck.length;
-          addCards(currentDeck, uniqueByName(filler), 100 - requestedLands, commanderName);
-          if (currentDeck.length === before) break;
+
+          addCards(
+            currentDeck,
+            uniqueByName(shuffleArray(fallbackCards)),
+            nonlandTarget,
+            commanderName
+          );
+
+          if (currentDeck.length === before && attempts >= 5) {
+            break;
+          }
         }
 
+        currentDeck = currentDeck.slice(0, nonlandTarget);
+
+        setStatus("Adding lands...", "warn");
+
         const lands = await getLands(colors, requestedLands);
-        addCards(currentDeck, lands, 100, commanderName);
+
+        for (const land of lands) {
+          if (currentDeck.length >= 100) break;
+          currentDeck.push(land);
+        }
+
+        while (currentDeck.length < 100) {
+          const basicNames = getBasicLandsForColors(colors);
+          const fallbackBasicName = basicNames.length
+            ? basicNames[currentDeck.length % basicNames.length]
+            : "Wastes";
+
+          const basic = await fetchCardByName(fallbackBasicName);
+
+          if (!basic) break;
+
+          currentDeck.push({ ...basic });
+        }
 
         currentDeck = currentDeck.slice(0, 100);
 
         displayDeck();
-        setStatus(`Built a ${currentDeck.length}-card deck for ${commanderName}.`, "good");
+
+        const finalLandCount = currentDeck.filter(card => isLand(card)).length;
+
+        if (currentDeck.length === 100) {
+          setStatus(
+            `Built a complete 100-card ${getColorIdentityText(colors)} ${theme} deck for ${commanderName} with ${finalLandCount} lands.`,
+            "good"
+          );
+        } else {
+          setStatus(
+            `Built ${currentDeck.length} cards. Scryfall did not return enough matching cards.`,
+            "warn"
+          );
+        }
       } catch (error) {
         console.error(error);
         setStatus(error.message || "Something went wrong while building the deck.", "bad");
@@ -1122,47 +1309,68 @@
 
     async function getLands(colors, requestedLands) {
       const lands = [];
-
       const colorString = normalizeColors(colors).toLowerCase();
 
-      const stapleLandQuery = colors.length === 0
-        ? "legal:commander t:land id<=c"
-        : `legal:commander t:land id<=${colorString} (otag:mana-fixing or name:"Command Tower" or name:"Path of Ancestry" or name:"Exotic Orchard")`;
+      const nonBasicTarget = Math.min(
+        requestedLands,
+        colors.length <= 1 ? 8 : colors.length === 2 ? 12 : 16
+      );
 
-      const nonBasics = await scryfallSearch(stapleLandQuery, Math.min(14, requestedLands));
+      const stapleLandQuery = colors.length === 0
+        ? `legal:commander t:land id<=c -is:digital`
+        : `legal:commander t:land id<=${colorString} -is:digital (name:"Command Tower" or name:"Path of Ancestry" or name:"Exotic Orchard" or name:"Reliquary Tower" or otag:mana-fixing or otag:dual-land or otag:tri-land)`;
+
+      const nonBasics = await scryfallSearch(stapleLandQuery, nonBasicTarget + 10);
 
       for (const land of nonBasics) {
-        if (lands.length >= requestedLands) break;
-        if (!lands.some(existing => existing.name === land.name)) lands.push(land);
+        if (lands.length >= nonBasicTarget) break;
+        if (!land || !land.name) continue;
+        if (isBasicLandName(land.name)) continue;
+        if (lands.some(existing => existing.name === land.name)) continue;
+
+        lands.push(land);
       }
 
       const basicsNeeded = requestedLands - lands.length;
 
-      if (basicsNeeded <= 0) return lands;
+      if (basicsNeeded <= 0) {
+        return lands.slice(0, requestedLands);
+      }
 
       const basicNames = getBasicLandsForColors(colors);
 
-      if (basicNames.length === 0) {
+      if (!basicNames.length) {
         const wastes = await fetchCardByName("Wastes");
-        for (let i = 0; i < basicsNeeded; i++) {
-          lands.push({ ...wastes, name: "Wastes" });
+
+        if (wastes) {
+          for (let i = 0; i < basicsNeeded; i++) {
+            lands.push({ ...wastes });
+          }
         }
-        return lands;
+
+        return lands.slice(0, requestedLands);
       }
 
       const basicCards = [];
 
       for (const name of basicNames) {
         const card = await fetchCardByName(name);
-        if (card) basicCards.push(card);
+
+        if (card) {
+          basicCards.push(card);
+        }
+      }
+
+      if (!basicCards.length) {
+        return lands.slice(0, requestedLands);
       }
 
       for (let i = 0; i < basicsNeeded; i++) {
-        const card = basicCards[i % basicCards.length];
-        lands.push({ ...card });
+        const basic = basicCards[i % basicCards.length];
+        lands.push({ ...basic });
       }
 
-      return lands;
+      return lands.slice(0, requestedLands);
     }
 
     function getBasicLandsForColors(colors) {
@@ -1174,13 +1382,10 @@
         G: "Forest"
       };
 
-      return normalizeColors(colors).split("").map(color => map[color]).filter(Boolean);
-    }
-
-    async function fetchCardByName(name) {
-      const response = await fetch(SCRYFALL_NAMED_URL + encodeURIComponent(name));
-      if (!response.ok) return null;
-      return await response.json();
+      return normalizeColors(colors)
+        .split("")
+        .map(color => map[color])
+        .filter(Boolean);
     }
 
     function displayDeck() {
@@ -1191,9 +1396,9 @@
 
     function updateStats() {
       const totalCards = currentDeck.length;
-      const landCount = currentDeck.filter(card => card.type_line && card.type_line.includes("Land")).length;
+      const landCount = currentDeck.filter(card => isLand(card)).length;
 
-      const nonLands = currentDeck.filter(card => !(card.type_line || "").includes("Land"));
+      const nonLands = currentDeck.filter(card => !isLand(card));
       const mvTotal = nonLands.reduce((sum, card) => sum + Number(card.cmc || 0), 0);
       const avg = nonLands.length ? (mvTotal / nonLands.length).toFixed(2) : "—";
 
@@ -1226,6 +1431,7 @@
                 ? `<img src="${image}" alt="${escapeHtml(card.name)}">`
                 : ""
             }
+
             <div class="card-body">
               <div class="card-name">${escapeHtml(card.name)}</div>
               <div class="card-meta">${escapeHtml(card.type_line || "")}</div>
@@ -1244,14 +1450,27 @@
         counts.set(card.name, (counts.get(card.name) || 0) + 1);
       });
 
-      return [...counts.entries()]
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([name, count]) => `${count} ${name}`)
-        .join("\n");
+      const commanderName = selectedCommanderData?.name;
+      const lines = [];
+
+      if (commanderName && counts.has(commanderName)) {
+        lines.push(`1 ${commanderName}`);
+        counts.delete(commanderName);
+        lines.push("");
+      }
+
+      const sorted = [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+      for (const [name, count] of sorted) {
+        lines.push(`${count} ${name}`);
+      }
+
+      return lines.join("\n");
     }
 
     function renderDeckList() {
       const text = getDeckText();
+
       document.getElementById("deckList").textContent = text;
       document.getElementById("exportList").textContent = text;
     }
@@ -1298,6 +1517,7 @@
       a.remove();
 
       URL.revokeObjectURL(url);
+
       setStatus("Decklist downloaded.", "good");
     }
 
@@ -1309,9 +1529,11 @@
       document.getElementById("selectedCommander").value = "";
       commanderResults.innerHTML = "";
       commanderResults.style.display = "none";
+
       document.getElementById("randomCommanderResult").innerHTML = "";
 
       const existingPreview = document.getElementById("selectedCommanderPreview");
+
       if (existingPreview) existingPreview.remove();
 
       document.getElementById("deckFeedback").value = "";
@@ -1340,11 +1562,11 @@
         const colors = selectedCommanderData.color_identity || [];
         const colorQuery = colorIdentityQuery(colors);
         const budget = budgetQuery();
-        const base = `legal:commander ${colorQuery}${budget} -t:land`;
+        const base = `legal:commander ${colorQuery}${budget} -t:land -is:digital`;
         const addQueries = [];
 
         if (feedback.includes("removal") || feedback.includes("interaction")) {
-          addQueries.push(`${base} (otag:removal or o:destroy or o:exile)`);
+          addQueries.push(`${base} (otag:removal or o:destroy or o:exile or o:"counter target")`);
         }
 
         if (feedback.includes("draw") || feedback.includes("card advantage")) {
@@ -1360,11 +1582,11 @@
         }
 
         if (feedback.includes("cheaper") || feedback.includes("budget")) {
-          addQueries.push(`legal:commander ${colorQuery} usd<=2 -t:land`);
+          addQueries.push(`legal:commander ${colorQuery} usd<=2 -t:land -is:digital`);
         }
 
         if (feedback.includes("aggressive") || feedback.includes("aggro") || feedback.includes("combat")) {
-          addQueries.push(`${base} (o:"haste" or o:"double strike" or o:"attacks" or otag:aggro)`);
+          addQueries.push(`${base} (o:haste or o:"double strike" or o:attacks or otag:aggro)`);
         }
 
         if (feedback.includes("creature") || feedback.includes("creatures")) {
@@ -1380,7 +1602,7 @@
         }
 
         if (feedback.includes("token") || feedback.includes("tokens")) {
-          addQueries.push(`${base} (o:token or otag:tokens)`);
+          addQueries.push(`${base} (o:token or o:tokens or otag:tokens)`);
         }
 
         if (!addQueries.length) {
@@ -1391,8 +1613,8 @@
           return;
         }
 
-        const results = await Promise.all(addQueries.map(query => scryfallSearch(query, 10)));
-        const cardsToAdd = uniqueByName(results.flat()).slice(0, 8);
+        const results = await Promise.all(addQueries.map(query => scryfallSearch(query, 14)));
+        const cardsToAdd = uniqueByName(shuffleArray(results.flat())).slice(0, 8);
 
         if (!cardsToAdd.length) {
           setStatus("No matching cards were found for that change.", "bad");
@@ -1400,6 +1622,7 @@
         }
 
         replaceCards(cardsToAdd);
+
         feedbackInput.value = "";
         setStatus(`Modified deck with ${cardsToAdd.length} new card suggestion(s).`, "good");
       } catch (error) {
@@ -1420,8 +1643,8 @@
 
       let removableCards = currentDeck.filter(card => {
         const name = card.name.toLowerCase();
-        const type = card.type_line || "";
-        return !protectedNames.has(name) && !type.includes("Land");
+
+        return !protectedNames.has(name) && !isLand(card);
       });
 
       for (const newCard of cardsToAdd) {
@@ -1434,11 +1657,17 @@
         const randomIndex = Math.floor(Math.random() * removableCards.length);
         const cardToRemove = removableCards[randomIndex];
 
-        currentDeck = currentDeck.filter(card => card.name !== cardToRemove.name);
-        currentDeck.push(newCard);
+        const removeIndex = currentDeck.findIndex(card => card.name === cardToRemove.name);
+
+        if (removeIndex !== -1) {
+          currentDeck.splice(removeIndex, 1);
+          currentDeck.push(newCard);
+        }
 
         removableCards = removableCards.filter(card => card.name !== cardToRemove.name);
       }
+
+      currentDeck = currentDeck.slice(0, 100);
 
       displayDeck();
     }
